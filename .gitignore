@@ -1,0 +1,13 @@
+# raw downloads and intermediate products of the preprocessing pipeline
+data/raw/
+data/intermediate/
+
+# private notes
+CHANGELOG.md
+NOTES*.md
+
+# jupyter / python
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.DS_Store
