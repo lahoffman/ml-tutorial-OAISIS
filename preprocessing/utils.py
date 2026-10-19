@@ -67,6 +67,19 @@ def clean_fill(a, threshold=1e19):
     return a
 
 
+# --- ITP tracks ---------------------------------------------------------------------------------------
+def segment_tracks(time, lat, lon, max_km_per_day=30.0, slack_km=50.0):
+    """Split time-ordered samples into tracks: a new track starts where the date does not advance,
+    or where the position jump is larger than drift could explain over the elapsed days.
+    Returns 1-based integer ids (n,)."""
+    days = np.asarray(time, dtype="datetime64[D]").astype(int)
+    dt = np.diff(days)
+    la, lo = np.radians(lat), np.radians(lon)
+    d = 2 * 6371.0 * np.arcsin(np.sqrt(np.sin(np.diff(la) / 2) ** 2 + np.cos(la[:-1]) * np.cos(la[1:]) * np.sin(np.diff(lo) / 2) ** 2))
+    new = (dt <= 0) | (d > slack_km + max_km_per_day * np.maximum(dt, 0))
+    return np.concatenate([[1], 1 + np.cumsum(new)]).astype("int16")
+
+
 # --- time -------------------------------------------------------------------------------------------
 def match_dates(model_time, target_dates):
     """Index of the model time step closest to each target date.

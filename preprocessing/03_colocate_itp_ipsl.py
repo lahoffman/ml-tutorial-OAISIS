@@ -64,7 +64,7 @@ def main():
     keep = np.all([np.isfinite(a).all(axis=0) for a in arrs.values()], axis=0)
     res = xr.Dataset({"obs_" + ("sic" if v == "siconc" else v): (("member", "sample"), arrs[v][:, keep]) for v in VARS},
                      coords={"member": MEMBERS, "obs_lat": ("sample", lat[keep]), "obs_lon": ("sample", lon[keep]),
-                             "obs_time": ("sample", itp.time.values[keep]), "obs_itp": ("sample", itp.itp.values[keep])})
+                             "obs_time": ("sample", itp.time.values[keep]), "obs_track": ("sample", itp.itp.values[keep].astype("int16"))})
     res.to_netcdf(INTERMEDIATE / "colocated_ipsl.nc")
     print(f"kept {keep.sum()} of {keep.size} samples")
 

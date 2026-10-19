@@ -11,7 +11,8 @@ re-downloading CMIP6, the corrections that are now built into 03 and 04:
   * keep IPSL-CM6A-LR only (drop the CanESM5 and MIROC6 rows),
   * rotate siu/siv from grid x/y to east/north (ITP samples: angle of the nearest grid cell),
   * drop the ORCA halo cells and fill the half-empty fold row,
-  * store lat/lon/time once, with proper time coordinates and attributes.
+  * store lat/lon/time once, with proper time coordinates and attributes,
+  * recover ITP track ids from gaps in date/position (the ITP numbers were not kept in 2025).
 """
 import sys
 from datetime import datetime, timedelta
@@ -22,7 +23,7 @@ import xarray as xr
 
 from config import ARCTIC_LAT_MIN, DATASET, FILL_THRESHOLD, MEMBERS
 from dataset import write_dataset
-from utils import clean_fill, fill_fold_row, grid_angle, nearest_cells, rotate_to_east_north, trim_orca_halo
+from utils import clean_fill, fill_fold_row, grid_angle, nearest_cells, rotate_to_east_north, segment_tracks, trim_orca_halo
 
 REF = datetime(1850, 1, 1)
 
@@ -59,7 +60,8 @@ def main(folder):
         {"obs_uas": (("member", "sample"), mask.uas_CMIP6.values[:n]), "obs_vas": (("member", "sample"), mask.vas_CMIP6.values[:n]),
          "obs_sic": (("member", "sample"), mask.sic_CMIP6.values[:n]),
          "obs_siu": (("member", "sample"), osiu.astype("float32")), "obs_siv": (("member", "sample"), osiv.astype("float32"))},
-        coords={"member": MEMBERS, "obs_lat": ("sample", olat), "obs_lon": ("sample", olon), "obs_time": ("sample", otime)})
+        coords={"member": MEMBERS, "obs_lat": ("sample", olat), "obs_lon": ("sample", olon), "obs_time": ("sample", otime),
+                "obs_track": ("sample", segment_tracks(otime, olat, olon))})
 
     ds = write_dataset(obs_ds, map_ds, DATASET,
                        "built with preprocessing/05b_build_dataset_from_zenodo.py from Zenodo 10.5281/zenodo.15597587 "

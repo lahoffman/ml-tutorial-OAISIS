@@ -15,8 +15,9 @@ additional observations would matter most — the observing-system-design questi
 | Binder | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lahoffman/ml-tutorial-OAISIS/HEAD?labpath=reconstruction.ipynb) |
 | Locally | `pip install -r requirements.txt jupyterlab && jupyter lab reconstruction.ipynb` (Python 3.10–3.12) |
 
-Everything the notebook needs is in this repository (`data/oaisis_tutorial_IPSL.nc`, 7 MB). It runs in
-about five minutes on a laptop CPU.
+Everything the notebook needs is in this repository (`data/oaisis_tutorial_IPSL.nc`, 7 MB). Sections 1–3 run in
+a couple of minutes on a laptop CPU; the observing-system experiments in section 4 retrain the network ~45 times
+and take 10–15 minutes (set `SEEDS = (0,)` or pass `quick=True` for a faster look).
 
 ## What's here
 
@@ -24,6 +25,7 @@ about five minutes on a laptop CPU.
 reconstruction.ipynb     the tutorial (self-contained)
 data/                    the dataset and its description
 preprocessing/           how the dataset was made: download -> ITP positions -> co-location -> maps -> dataset
+figures/                 the two schematics at the top of the notebook, and the script that draws them (it trains the two small networks they show)
 requirements.txt         python packages (also used by Binder)
 ```
 

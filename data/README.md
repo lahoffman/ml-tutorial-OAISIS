@@ -13,13 +13,17 @@ calendar day, for each of the 31 historical members `r1i1p1f1` … `r31i1p1f1`.
 |---|---|---|---|
 | `obs_lat`, `obs_lon` | sample | degrees | ITP position |
 | `obs_time` | sample | datetime | ITP date (00 UTC fix) |
+| `obs_track` | sample | — | ITP track id (1–105, in time order); 45 tracks have ≥ 30 days |
 | `member` | member | — | variant label, e.g. `r1i1p1f1` |
 | `obs_uas`, `obs_vas` | member, sample | m s⁻¹ | eastward / northward 10 m wind (`day/uas`, `day/vas`) |
 | `obs_sic` | member, sample | % | sea-ice concentration (`SIday/siconc`) |
 | `obs_siu`, `obs_siv` | member, sample | m s⁻¹ | **eastward / northward** sea-ice velocity (rotated from `SIday/siu`, `siv`) |
 
 Samples are ordered by ITP and time; 96 % of consecutive samples are consecutive days of the same ITP.
-Samples where any member was on land or missing were removed, so there are no fill values.
+Samples where any member was on land or missing were removed, so there are no fill values. The 2025 files did
+not keep the WHOI ITP numbers, so `obs_track` is recovered from the data: a new track starts where the date
+does not advance or the position jumps further than ice could drift (`preprocessing/utils.segment_tracks`).
+Most tracks are single ITPs; an ITP with a long data gap may appear as two.
 
 ## Part 2 — Arctic maps from one member (`map_*`)
 

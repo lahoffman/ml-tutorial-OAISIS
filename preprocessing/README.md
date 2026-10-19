@@ -62,4 +62,5 @@ correlation in the maps is 0.59 / 0.52 (u / v); with it, 0.72 / 0.88.
 * The ITP positions in the Zenodo files were matched to model days by day number rather than calendar
   date. That is exact for IPSL-CM6A-LR (Gregorian calendar) but would be wrong for 365-day-calendar
   models, which is why 03 now matches on dates.
-* ITP identifiers were not carried through the 2025 files, so `obs_itp` exists only in a from-scratch build.
+* ITP identifiers were not carried through the 2025 files. `obs_track` is therefore recovered from gaps in
+  date/position (`utils.segment_tracks`, 105 tracks); a from-scratch build (03) stores the real ITP numbers.

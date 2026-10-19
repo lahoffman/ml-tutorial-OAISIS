@@ -8,6 +8,9 @@ ATTRS = {
     "obs_lat":  dict(long_name="latitude of ITP position", units="degrees_north"),
     "obs_lon":  dict(long_name="longitude of ITP position", units="degrees_east"),
     "obs_time": dict(long_name="date of ITP position"),
+    "obs_track": dict(long_name="ITP track id", comment="consecutive samples from one drifting ITP share an id; "
+                      "numbered in time order. From the 2025 files the real ITP numbers are not available, so tracks "
+                      "are recovered from gaps in date/position (preprocessing/utils.segment_tracks)."),
     "obs_uas":  dict(long_name="eastward 10 m wind at ITP position", units="m s-1", standard_name="eastward_wind"),
     "obs_vas":  dict(long_name="northward 10 m wind at ITP position", units="m s-1", standard_name="northward_wind"),
     "obs_sic":  dict(long_name="sea-ice concentration at ITP position", units="%", standard_name="sea_ice_area_fraction"),
