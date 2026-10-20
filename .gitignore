@@ -11,3 +11,10 @@ NOTES*.md
 __pycache__/
 *.pyc
 .DS_Store
+
+# jupyter book build
+book/_build/
+
+# python packaging
+*.egg-info/
+__pycache__/

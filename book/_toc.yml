@@ -1,0 +1,9 @@
+format: jb-book
+root: intro
+chapters:
+  - file: 01_data
+  - file: 02_ml_dataset
+  - file: 03_linear_regression
+  - file: 04_neural_network
+  - file: 05_reconstruction
+  - file: 06_osd

@@ -12,8 +12,9 @@ additional observations would matter most — the observing-system-design questi
 
 | | |
 |---|---|
-| Binder | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lahoffman/ml-tutorial-OAISIS/HEAD?labpath=reconstruction.ipynb) |
-| Locally | `pip install -r requirements.txt jupyterlab && jupyter lab reconstruction.ipynb` (Python 3.10–3.12) |
+| Website | **[lahoffman.github.io/ml-tutorial-OAISIS](https://lahoffman.github.io/ml-tutorial-OAISIS)** — the tutorial as a Jupyter Book, one concept per page, with *Live Code* to run and edit the cells in the browser |
+| Binder | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lahoffman/ml-tutorial-OAISIS/HEAD?labpath=reconstruction.ipynb) — the single notebook in JupyterLab |
+| Locally | `pip install -r requirements.txt -e . jupyterlab && jupyter lab reconstruction.ipynb` (Python 3.10–3.12) |
 
 Everything the notebook needs is in this repository (`data/oaisis_tutorial_IPSL.nc`, 7 MB). Sections 1–3 run in
 a couple of minutes on a laptop CPU; the observing-system experiments in section 4 retrain the network ~45 times
@@ -22,12 +23,28 @@ and take 10–15 minutes (set `SEEDS = (0,)` or pass `quick=True` for a faster l
 ## What's here
 
 ```
-reconstruction.ipynb     the tutorial (self-contained)
+reconstruction.ipynb     the tutorial as one self-contained notebook: every line of code in one place
+book/                    the same tutorial as a Jupyter Book (the website): one page per concept, barebones code
+oaisis/                  the helper package the book pages import (data, plots, ml, metrics, selectors, experiments, teaching);
+                         `pip install -e .` -- Binder does this automatically
 data/                    the dataset and its description
 preprocessing/           how the dataset was made: download -> ITP positions -> co-location -> maps -> dataset
-figures/                 the two schematics at the top of the notebook, and the script that draws them (it trains the two small networks they show)
+figures/                 the three schematics and the script that draws them (it trains the small networks they show)
 requirements.txt         python packages (also used by Binder)
+.github/workflows/       builds the book and publishes it to GitHub Pages on every push to main
 ```
+
+## The website
+
+`jupyter-book build book` builds the site into `book/_build/html` (`pip install "jupyter-book==1.0.*"` first; the first
+build executes every page and takes 15-20 minutes because the observing-system page retrains the network ~50 times —
+later builds re-run only the pages whose code changed). The GitHub Action does the same on every push and deploys to
+GitHub Pages; the one-time setup is *Settings → Pages → Source: GitHub Actions* in the repository.
+
+**Live Code** on the website is [Thebe](https://thebe.readthedocs.io) backed by mybinder.org: each visitor gets a
+kernel of their own, built from this repository's `requirements.txt`, and edits live only in their browser — reloading a
+page restores it. Binder caches the image, so the first visit after a push rebuilds it (~10 min); open the Binder link once
+after pushing to warm it up before a session.
 
 ## Data
 

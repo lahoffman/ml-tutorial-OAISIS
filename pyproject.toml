@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oaisis-tutorial"
+version = "1.0"
+description = "Helpers for the OAISIS sea-ice observing-system-design tutorial"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["oaisis"]

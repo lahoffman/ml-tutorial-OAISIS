@@ -3,9 +3,10 @@
     python figures/make_schematics.py          (about a minute on CPU)
 
 figures/training.png        inputs at ITP locations -> neural network -> outputs at ITP locations,
-                            for a small set of ITPs (NN 1) and the same set plus new ITPs elsewhere (NN 2)
+                            for one ITP (NN 1, ITP 95) and the same ITP plus a second one elsewhere (NN 2, ITPs 95 + 5)
 figures/reconstruction.png  full-Arctic inputs -> NN 1 / NN 2 -> predicted maps, scored against the truth,
                             and the skill of the two compared
+figures/sparse_to_global.png one network trained on all ITP samples, then applied to the full grid (no comparison yet)
 """
 import os
 from pathlib import Path
@@ -32,11 +33,9 @@ plt.rcParams.update({"font.family": "serif", "font.size": 11})
 lat, lon, track = ds.obs_lat.values, ds.obs_lon.values, ds.obs_track.values
 doy = ds.obs_time.dt.dayofyear.values
 ids, n_per = np.unique(track, return_counts=True)
-long_ids = ids[n_per >= 100]
-mean_lon = np.array([np.degrees(np.arctan2(np.sin(np.radians(lon[track == i])).mean(), np.cos(np.radians(lon[track == i])).mean())) for i in long_ids])
-beaufort = long_ids[(mean_lon < -120)][:4]                                # NN 1: four tracks in the Beaufort Sea
-elsewhere = sorted(long_ids[mean_lon > -90], key=lambda i: -n_per[ids == i][0])[:4]   # NN 2 adds the 4 longest tracks elsewhere
-obs_sets = {"NN 1": np.isin(track, beaufort), "NN 2": np.isin(track, np.r_[beaufort, elsewhere])}
+NN1_TRACKS = [95]                                                         # NN 1: one ITP (two months north of the Laptev Sea)
+NN2_TRACKS = [95, 5]                                                      # NN 2: the same ITP plus ITP 5 (six months toward Fram Strait)
+obs_sets = {"NN 1": np.isin(track, NN1_TRACKS), "NN 2": np.isin(track, NN2_TRACKS), "NN": np.ones(track.size, bool)}
 
 MEMBERS = list(ds.member.values)
 TRAIN, VAL = MEMBERS[1:21], MEMBERS[21:26]
@@ -112,7 +111,7 @@ def mesh(ax, f, cmap, vmin, vmax):
 
 
 def points(ax, sel, c, cmap=None, vmin=None, vmax=None, **kw):
-    return ax.scatter(lon[sel], lat[sel], c=c, s=3, cmap=cmap, vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree(), linewidths=0, zorder=3, **kw)
+    return ax.scatter(lon[sel], lat[sel], c=c, s=9, cmap=cmap, vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree(), linewidths=0, zorder=3, **kw)
 
 
 def frame(fig, ax, title):
@@ -161,7 +160,7 @@ fig = plt.figure(figsize=(12, 9.2))
 gs = fig.add_gridspec(2, 3, width_ratios=[4, 1.6, 4], wspace=0.55, hspace=0.75, left=0.08, right=0.97, top=0.92, bottom=0.07)
 wind_speed = np.hypot(ds.obs_uas.sel(member="r1i1p1f1").values, ds.obs_vas.sel(member="r1i1p1f1").values)
 ice_speed = np.hypot(ds.obs_siu.sel(member="r1i1p1f1").values, ds.obs_siv.sel(member="r1i1p1f1").values)
-for row, (name, sel) in enumerate(obs_sets.items()):
+for row, (name, sel) in enumerate(list(obs_sets.items())[:2]):
     ax_in = fig.add_subplot(gs[row, 0], projection=PROJ); polar(ax_in)
     ax_nn = fig.add_subplot(gs[row, 1])
     ax_out = fig.add_subplot(gs[row, 2], projection=PROJ); polar(ax_out)
@@ -170,7 +169,7 @@ for row, (name, sel) in enumerate(obs_sets.items()):
     if row == 1:                                                           # halo under what is new relative to NN 1
         new = sel & ~obs_sets["NN 1"]
         for ax in (ax_in, ax_out):
-            ax.scatter(lon[new], lat[new], s=30, color=LAVENDER, alpha=0.25, linewidths=0, transform=ccrs.PlateCarree(), zorder=2)
+            ax.scatter(lon[new], lat[new], s=60, color=LAVENDER, alpha=0.25, linewidths=0, transform=ccrs.PlateCarree(), zorder=2)
     frame(fig, ax_in, "inputs"); frame(fig, ax_out, "outputs")
     network(fig, ax_nn, name)
     arrow(fig, ax_in, ax_nn); arrow(fig, ax_nn, ax_out)
@@ -191,7 +190,7 @@ fig = plt.figure(figsize=(17.5, 9.2))
 gs = fig.add_gridspec(2, 6, width_ratios=[4, 1.6, 4, 0.9, 4, 3.6], wspace=0.5, hspace=0.75, left=0.05, right=0.98, top=0.92, bottom=0.07)
 wind_map = np.hypot(ds.map_uas.values[:, :, 0], ds.map_vas.values[:, :, 0])
 truth_speed = np.hypot(truth[:, :, 0, 0], truth[:, :, 0, 1])
-for row, name in enumerate(obs_sets):
+for row, name in enumerate(list(obs_sets)[:2]):
     ax_in = fig.add_subplot(gs[row, 0], projection=PROJ); polar(ax_in, 66)
     ax_nn = fig.add_subplot(gs[row, 1])
     ax_pr = fig.add_subplot(gs[row, 2], projection=PROJ); polar(ax_pr, 66)
@@ -210,7 +209,7 @@ for row, name in enumerate(obs_sets):
     badge(fig, 0.02, (bp.y0 + bp.y1) / 2, row + 1)
 # step 3: compare
 axb = fig.add_subplot(gs[:, 5])
-names = list(obs_sets)
+names = list(obs_sets)[:2]
 axb.bar([0, 1], [score[n] for n in names], color=[GREY, LAVENDER], width=0.6)
 axb.set_xticks([0, 1]); axb.set_xticklabels(names, fontsize=12)
 axb.set_ylim(0, max(0.7, max(score.values()) + 0.1)); axb.set_ylabel("reconstruction skill", fontsize=12)
@@ -225,3 +224,47 @@ for row in range(2):
                                    arrowstyle="-|>", mutation_scale=20, color=INK, lw=2))
 fig.savefig(ROOT / "figures" / "reconstruction.png", dpi=160, facecolor="white")
 print("written figures/reconstruction.png")
+
+# ---------------------------------------------------------------- figure 3: one network, sparse -> global
+fig = plt.figure(figsize=(15, 9.2))
+gs = fig.add_gridspec(2, 5, width_ratios=[4, 1.6, 4, 0.9, 4], wspace=0.5, hspace=0.85, left=0.06, right=0.96, top=0.90, bottom=0.07)
+sel = obs_sets["NN"]
+# row 0: training at the observation locations
+ax_in = fig.add_subplot(gs[0, 0], projection=PROJ); polar(ax_in, 66)
+ax_nn0 = fig.add_subplot(gs[0, 1])
+ax_out = fig.add_subplot(gs[0, 2], projection=PROJ); polar(ax_out, 66)
+points(ax_in, sel, wind_speed[sel], cmocean.cm.speed, 0, 12)
+points(ax_out, sel, ice_speed[sel], cmocean.cm.speed, 0, 0.3)
+frame(fig, ax_in, "inputs at the ITP locations"); frame(fig, ax_out, "outputs at the ITP locations")
+network(fig, ax_nn0, "NN"); arrow(fig, ax_in, ax_nn0); arrow(fig, ax_nn0, ax_out)
+bi, bo = ax_in.get_position(), ax_out.get_position()
+fig.text(bi.x0 + bi.width / 2, bi.y0 - 0.03, "wind · ice concentration · position · date", ha="center", va="top", fontsize=10, style="italic")
+fig.text(bo.x0 + bo.width / 2, bo.y0 - 0.03, "sea-ice velocity (the training targets)", ha="center", va="top", fontsize=10, style="italic")
+badge(fig, 0.025, (bi.y0 + bi.y1) / 2, 1)
+fig.text(bi.x0 - 0.012, bi.y1 + 0.085, "train at the observation locations", ha="left", fontsize=13, fontweight="bold")
+# row 1: the same network applied to the full grid
+ax_min = fig.add_subplot(gs[1, 0], projection=PROJ); polar(ax_min, 66)
+ax_nn1 = fig.add_subplot(gs[1, 1])
+ax_pr = fig.add_subplot(gs[1, 2], projection=PROJ); polar(ax_pr, 66)
+ax_tr = fig.add_subplot(gs[1, 4], projection=PROJ); polar(ax_tr, 66)
+mesh(ax_min, wind_map, cmocean.cm.tempo, 0, 12)
+pr = np.hypot(recon["NN"][:, :, 0, 0], recon["NN"][:, :, 0, 1])
+mesh(ax_pr, np.where(ice, pr, np.nan), cmocean.cm.speed, 0, 0.3)
+mesh(ax_tr, np.where(ice, truth_speed, np.nan), cmocean.cm.speed, 0, 0.3)
+frame(fig, ax_min, "inputs everywhere"); frame(fig, ax_pr, "predicted outputs"); frame(fig, ax_tr, "true outputs")
+network(fig, ax_nn1, "same NN"); arrow(fig, ax_min, ax_nn1); arrow(fig, ax_nn1, ax_pr)
+bp, bt = ax_pr.get_position(), ax_tr.get_position()
+fig.text((bp.x1 + bt.x0) / 2, (bp.y0 + bp.y1) / 2, "vs.", ha="center", va="center", fontsize=14, style="italic")
+fig.text(bp.x0 + bp.width / 2, bp.y0 - 0.03, f"skill {score['NN']:.2f}", ha="center", va="top", fontsize=12, fontweight="bold")
+bm = ax_min.get_position()
+fig.text(bm.x0 + bm.width / 2, bm.y0 - 0.03, "the same inputs, on the whole grid", ha="center", va="top", fontsize=10, style="italic")
+fig.text(bt.x0 + bt.width / 2, bt.y0 - 0.03, "known: the 'world' is a climate model", ha="center", va="top", fontsize=10, style="italic")
+badge(fig, 0.025, (bp.y0 + bp.y1) / 2, 2)
+fig.text(bm.x0 - 0.012, bm.y1 + 0.085, "reconstruct everywhere, and score against the truth", ha="left", fontsize=13, fontweight="bold")
+# the trained weights are carried from the training box to the reconstruction box
+n0, n1 = ax_nn0.get_position(), ax_nn1.get_position()
+xm = (n0.x0 + n0.x1) / 2
+fig.add_artist(FancyArrowPatch((xm, n0.y0 - 0.015), (xm, n1.y1 + 0.015), transform=fig.transFigure, arrowstyle="-|>", mutation_scale=22, color=LAVENDER, lw=2.5))
+fig.text(xm + 0.012, (n0.y0 + n1.y1) / 2, "trained\nweights", color="#5b4b8a", fontsize=10, va="center", ha="left")
+fig.savefig(ROOT / "figures" / "sparse_to_global.png", dpi=160, facecolor="white")
+print("written figures/sparse_to_global.png")
