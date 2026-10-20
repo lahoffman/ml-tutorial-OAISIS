@@ -8,4 +8,5 @@ cftime
 matplotlib
 cartopy
 cmocean
-tensorflow-cpu
+tensorflow-cpu; sys_platform != "darwin"
+tensorflow; sys_platform == "darwin"

@@ -86,7 +86,7 @@ def tracks(min_days=30, lat_min=72, label=True, figsize=(9, 9)):
         m = D.track_obs == i
         ax.scatter(D.lon_obs[m], D.lat_obs[m], s=2, color=cmap(i % 20), transform=PC)
         if label:
-            ax.text(D.lon_obs[m][0], D.lat_obs[m][0], str(i), fontsize=7, transform=PC, ha="center", va="center",
+            ax.text(D.lon_obs[m][0], D.lat_obs[m][0], str(i), fontsize=9, transform=PC, ha="center", va="center",
                     bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.8))
     return ax
 
@@ -179,7 +179,7 @@ def cell_scores(s, c, title=""):
     fig.suptitle(title)
 
 
-# --- observing-system experiments -----------------------------------------------------------------------
+# --- observing system experiments -----------------------------------------------------------------------
 def sampling(scenarios, title="", lat_min=70):
     """One map per observing system: its samples in black, the rest in grey."""
     fig, axs = _grid(len(scenarios), size=3.6, height=3.8)
@@ -198,9 +198,9 @@ def skill_bars(results, title="", reference="all"):
     fig, ax = plt.subplots(figsize=(1.6 * len(names) + 2, 4))
     ax.bar(names, mean, yerr=[lo, hi], capsize=4, color=[DARK if n == reference else LAVENDER for n in names], width=0.6)
     for i, n in enumerate(names):
-        ax.text(i, 0.02, f"{results[n]['n_obs']:,}", ha="center", va="bottom", color="white", fontsize=9)
+        ax.text(i, 0.02, f"{results[n]['n_obs']:,}", ha="center", va="bottom", color="white", fontsize=11)
     ax.set_ylabel("reconstruction skill"); ax.set_ylim(0, max(0.8, mean.max() + 0.1))
-    ax.set_title(f"{title}   (number of samples on each bar)", fontsize=10)
+    ax.set_title(f"{title}   (number of samples on each bar)", fontsize=12)
     for sp in ("top", "right"): ax.spines[sp].set_visible(False)
     return ax
 
@@ -212,7 +212,7 @@ def skill_difference(results, reference="all", vmax=0.5):
     fig, axs = _grid(len(others), size=4.4, height=5)
     for ax, r in zip(axs, others):
         map_field(ax, base - r["skill_map"], f"{reference} - {r['name']}", vmin=-vmax, vmax=vmax)
-    fig.suptitle("skill of the reference minus skill of the scenario: red = the missing observations were helping there", fontsize=10)
+    fig.suptitle("skill of the reference minus skill of the scenario: red = the missing observations were helping there", fontsize=12)
 
 
 def skill_curve(steps, ref, title="", labels={}):
@@ -225,8 +225,8 @@ def skill_curve(steps, ref, title="", labels={}):
     ax.plot(n, mean, "o-", color="#5b4b8a", label="skill (seed mean)")
     ax.axhline(ref["skills"].mean(), color=DARK, ls="--", lw=1.2, label=f"all ITP samples ({ref['n_obs']:,})")
     for k, lab in labels.items():
-        ax.annotate(lab, (k, mean[k - 1]), textcoords="offset points", xytext=(0, -18), ha="center", fontsize=10)
+        ax.annotate(lab, (k, mean[k - 1]), textcoords="offset points", xytext=(0, -18), ha="center", fontsize=12)
     ax.set_xticks(n); ax.set_xlabel("number of ITPs used for training"); ax.set_ylabel("reconstruction skill")
-    ax.set_ylim(min(0.35, lo.min() - 0.05), 0.65); ax.legend(loc="lower right", frameon=False); ax.set_title(title, fontsize=10)
+    ax.set_ylim(min(0.35, lo.min() - 0.05), 0.65); ax.legend(loc="lower right", frameon=False); ax.set_title(title, fontsize=12)
     for sp in ("top", "right"): ax.spines[sp].set_visible(False)
     return ax

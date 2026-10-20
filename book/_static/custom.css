@@ -1,0 +1,22 @@
+/* Side lessons: things that can go wrong, not the main thread of the page */
+div.admonition.side-lesson {
+  border-left: 5px solid #8e7cc3;
+  background: #f6f3fb;
+}
+div.admonition.side-lesson > .admonition-title {
+  background-color: #e6dff3 !important;
+  color: #3f2d6e !important;
+}
+div.admonition.side-lesson > .admonition-title::after {
+  color: #3f2d6e !important;
+}
+div.cell.tag_side-lesson {
+  border-left: 5px solid #8e7cc3;
+  background: #f6f3fb;
+  padding: 0.6em 0 0.6em 0.9em;
+  margin-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+div.cell.tag_side-lesson div.cell_input {
+  border-left: none;
+}

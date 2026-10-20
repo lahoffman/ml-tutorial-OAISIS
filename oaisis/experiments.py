@@ -1,4 +1,4 @@
-"""Observing-system experiments: retrain the network on subsets of the ITP samples and score the reconstruction.
+"""Observing system experiments: retrain the network on subsets of the ITP samples and score the reconstruction.
 
     results = run_experiment("A", {"ITP 95": tracks(95), "ITP 5": tracks(5)})
     steps   = run_sequence("B", [1, 2, 3, 4, 96, 24, 7, 27, 5, 15])
