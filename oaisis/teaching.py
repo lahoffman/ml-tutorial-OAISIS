@@ -2,7 +2,7 @@
 (the ice velocity / wind relation along the ITP tracks)."""
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Circle
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Circle, Polygon, Rectangle
 
 from . import data as D
 from .selectors import tracks
@@ -101,6 +101,34 @@ def gradient_descent_panel(xs, ys, lrs=(0.1, 0.8, 2.1), steps=15):
     for ax, lr, lab in zip(axs, lrs, ("too small", "about right", "too large")):
         gradient_descent(xs, ys, lr=lr, steps=steps, ax=ax, title=f"learning rate {lr:g} — {lab}")
     return axs
+
+
+# --- what moves the ice -----------------------------------------------------------------------------------
+def forces():
+    """Side view of sea ice on the ocean: pushed by the wind above, dragged by the current below, resisted by
+    neighbouring floes. The arrows are the terms of the momentum balance."""
+    fig, ax = plt.subplots(figsize=(12, 4.6)); ax.set_xlim(0, 12); ax.set_ylim(-2.2, 2.6); ax.axis("off")
+    ax.add_patch(Rectangle((0, 0), 12, 2.6, fc="#eef4f9", ec="none"))                       # air
+    ax.add_patch(Rectangle((0, -2.2), 12, 2.2, fc="#3b6e9e", ec="none"))                      # ocean
+    for y, a in ((-0.5, 0.25), (-1.1, 0.18), (-1.7, 0.12)):                                   # a little texture in the water
+        ax.plot(np.linspace(0, 12, 300), y + 0.05 * np.sin(np.linspace(0, 12, 300) * 3), color="white", lw=1, alpha=a)
+    floes = [(0.6, 2.4, 0.45), (3.3, 3.2, 0.6), (6.8, 2.3, 0.5), (9.4, 2.1, 0.4)]            # x, width, thickness
+    for x, w, h in floes:
+        pts = [(x, -0.15 * h), (x + 0.12 * w, -h), (x + 0.88 * w, -h), (x + w, -0.1 * h), (x + 0.93 * w, 0.75 * h), (x + 0.1 * w, 0.8 * h)]
+        ax.add_patch(Polygon(pts, closed=True, fc="white", ec="#9fb3c8", lw=1.5, zorder=3))
+    kw = dict(mutation_scale=28, lw=0, zorder=5)
+    ax.add_patch(FancyArrowPatch((2.6, 1.9), (6.6, 1.9), arrowstyle="simple,head_length=0.9,head_width=1.2,tail_width=0.55", fc="#5b7fa6", **kw))
+    ax.text(4.6, 2.25, "wind", ha="center", va="bottom", fontsize=15, color="#2f4f6f")
+    ax.add_patch(FancyArrowPatch((3.0, -1.35), (5.6, -1.35), arrowstyle="simple,head_length=0.8,head_width=1.0,tail_width=0.4", fc="#a9c6e3", **kw))
+    ax.text(4.3, -1.75, "ocean current", ha="center", va="top", fontsize=15, color="white")
+    ax.add_patch(FancyArrowPatch((4.3, 0.45), (6.2, 0.45), arrowstyle="simple,head_length=0.8,head_width=1.0,tail_width=0.4", fc=INK, **kw))
+    ax.text(5.25, 0.95, "ice motion", ha="center", va="bottom", fontsize=15, color=INK, fontweight="bold")
+    ax.add_patch(FancyArrowPatch((7.5, 0.25), (6.75, 0.25), arrowstyle="simple,head_length=0.6,head_width=0.8,tail_width=0.3", fc=ORANGE, **kw))
+    ax.add_patch(FancyArrowPatch((6.1, 0.25), (6.75, 0.25), arrowstyle="simple,head_length=0.6,head_width=0.8,tail_width=0.3", fc=ORANGE, **kw))
+    ax.text(6.8, -0.75, "floes pushing on each other", ha="center", va="top", fontsize=13, color=ORANGE)
+    ax.annotate("", (10.4, 0.6), (10.4, 1.4), arrowprops=dict(arrowstyle="-|>", color="#7a7a7a", lw=1.5, connectionstyle="arc3,rad=-0.9"))
+    ax.text(10.4, 1.55, "Earth's rotation", ha="center", va="bottom", fontsize=13, color="#5a5a5a")
+    return ax
 
 
 # --- the ML dataset ----------------------------------------------------------------------------------------

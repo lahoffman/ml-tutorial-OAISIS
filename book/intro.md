@@ -12,7 +12,15 @@ This book does it in six short steps with a small neural network, climate-model 
 measurements, and the tracks of real Arctic drifting instruments. By the end you will train networks on observing
 systems of your own design and see where their reconstructions succeed and fail.
 
-## The idea in two pictures
+## The problem, and the idea
+
+Wind is known everywhere; ice velocity only where an instrument happened to be. If a model can learn the relation
+between the two at the instrument locations, it can be applied wherever the wind is known.
+
+```{figure} ../figures/problem.png
+:width: 100%
+:name: problem
+```
 
 **Training.** A neural network learns the relation *inputs → ice velocity* at the observation locations. Each observing
 system gives a different trained network: ① a single Ice-Tethered Profiler (ITP 95), ② the same ITP plus a second one
@@ -49,7 +57,8 @@ Both networks are real: they are the `ITP 95` and `ITP 95 + 5` observing systems
 
 Every page is a notebook, and the code on each page is what you see — the helper functions it calls live in the
 small [`oaisis`](https://github.com/lahoffman/ml-tutorial-OAISIS/tree/main/oaisis) package so that the page shows only
-what matters for the concept at hand.
+what matters for the concept at hand. (The same package powers the single notebook, where you edit exactly two cells:
+the hyperparameters and your own experiment.)
 
 * **Just read.** All outputs are pre-computed.
 * **Live Code** (rocket icon at the top of a page → *Live Code*). A Python kernel starts for you on
@@ -65,9 +74,8 @@ what matters for the concept at hand.
   then open any page under `book/` in Jupyter.
 
 The whole tutorial also exists as **one self-contained notebook**,
-[`reconstruction.ipynb`](https://github.com/lahoffman/ml-tutorial-OAISIS/blob/main/reconstruction.ipynb), with every
-line of code written out — the place to look when you want to see *how* something is done rather than *what* it shows,
-and the version used in live sessions: open it in
+[`reconstruction.ipynb`](https://github.com/lahoffman/ml-tutorial-OAISIS/blob/main/reconstruction.ipynb) — the version
+used in live sessions: open it in
 [Colab](https://colab.research.google.com/github/lahoffman/ml-tutorial-OAISIS/blob/main/reconstruction.ipynb) or
 [Binder](https://mybinder.org/v2/gh/lahoffman/ml-tutorial-OAISIS/HEAD?labpath=reconstruction.ipynb).
 

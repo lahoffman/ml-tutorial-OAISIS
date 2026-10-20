@@ -57,9 +57,21 @@ def predict(model, scaler, X):
 def reconstruct(model, scaler):
     """Apply a trained network to the full-Arctic inputs -> (ny, nx, nt, 2) ice velocity; NaN over land."""
     m = D.maps
-    pred = np.full((m.X.shape[0], 2), np.nan, dtype="float32")
-    pred[m.ok] = predict(model, scaler, m.X[m.ok])
+    X = D.maps_X(scaler.features)
+    pred = np.full((X.shape[0], 2), np.nan, dtype="float32")
+    pred[m.ok] = predict(model, scaler, X[m.ok])
     return pred.reshape(m.ny, m.nx, m.nt, 2)
+
+
+def linear_baseline(p, verbose=True):
+    """Multiple linear regression on the same inputs: the score any network has to beat.
+    Returns (model, validation mse in scaled units) — the mse is the dashed line in the learning curve."""
+    from sklearn.linear_model import LinearRegression
+    from .metrics import report
+    linear = LinearRegression().fit(p.x_tr, p.y_tr)
+    if verbose:
+        report(p.Y_te, p.scaler.y_inv(linear.predict(p.x_te)), "linear")
+    return linear, float(np.mean((linear.predict(p.x_va) - p.y_va) ** 2))
 
 
 def n_parameters(model):

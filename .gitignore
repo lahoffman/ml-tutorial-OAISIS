@@ -18,3 +18,4 @@ book/_build/
 # python packaging
 *.egg-info/
 __pycache__/
+_build/

@@ -7,7 +7,7 @@ only_build_toc_files: true
 
 execute:
   execute_notebooks: cache        # re-run a page only when its code changes
-  cache: _build/.jupyter_cache
+  cache: ""                      # default: book/_build/.jupyter_cache
   timeout: -1                     # the observing system page retrains the network ~50 times (10-15 min on CPU)
   allow_errors: false
 

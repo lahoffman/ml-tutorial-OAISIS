@@ -13,6 +13,11 @@ from . import data as D
 
 PROJ = ccrs.NorthPolarStereo(central_longitude=-90)
 PC = ccrs.PlateCarree()
+
+# one colormap per kind of quantity, used everywhere (notebook, book, schematics)
+CMAP = dict(wind=cmocean.cm.tempo, ice_speed=cmocean.cm.speed, sic=cmocean.cm.ice, corr=cmocean.cm.amp,
+            skill=cmocean.cm.balance, diff=cmocean.cm.curl,
+            diff_pos=cmocean.tools.crop_by_percent(cmocean.cm.curl, 50, which="min"))   # positive-only differences: upper half of curl
 LAVENDER, DARK, GREY = "#b4a7d6", "#333333", "#9a9a9a"
 _coastlines = None
 
@@ -97,9 +102,9 @@ def obs_overview(member="r1i1p1f1"):
     speed_ice, speed_wind = np.hypot(m.obs_siu, m.obs_siv), np.hypot(m.obs_uas, m.obs_vas)
     fig, axs = plt.subplots(2, 2, figsize=(11, 10), subplot_kw={"projection": PROJ}, layout="constrained")
     panels = [("day of year", D.doy_obs, cmocean.cm.phase, {}),
-              ("ice concentration [%]", m.obs_sic, cmocean.cm.ice, {"vmin": 0, "vmax": 100}),
-              ("ice speed [m/s]", speed_ice, cmocean.cm.speed, {"vmin": 0, "vmax": 0.4}),
-              ("wind speed [m/s]", speed_wind, cmocean.cm.speed, {"vmin": 0, "vmax": 15})]
+              ("ice concentration [%]", m.obs_sic, CMAP["sic"], {"vmin": 0, "vmax": 100}),
+              ("ice speed [m/s]", speed_ice, CMAP["ice_speed"], {"vmin": 0, "vmax": 0.4}),
+              ("wind speed [m/s]", speed_wind, CMAP["wind"], {"vmin": 0, "vmax": 15})]
     for ax, (title, c, cmap, kw) in zip(axs.flat, panels):
         polar_axes(ax, title)
         sc = ax.scatter(D.lon_obs, D.lat_obs, c=c, s=4, cmap=cmap, transform=PC, **kw)
@@ -107,23 +112,52 @@ def obs_overview(member="r1i1p1f1"):
     fig.suptitle(f"synthetic observations, member {member}")
 
 
-def input_maps(t=0, member_label="r1i1p1f1"):
-    """The full-Arctic fields for one day: the two targets, the three physical inputs, and where the ITPs sampled."""
+def relationships(member="r1i1p1f1"):
+    """Ice velocity against wind along the tracks: the relation the network has to learn (one member)."""
+    m = D.ds.sel(member=member)
+    speed_ice, speed_wind = np.hypot(m.obs_siu, m.obs_siv), np.hypot(m.obs_uas, m.obs_vas)
+    fig, axs = plt.subplots(1, 3, figsize=(16, 5), layout="constrained")
+    for ax, (x, y, xl, yl) in zip(axs, [(m.obs_uas, m.obs_siu, "eastward wind, uas [m/s]", "eastward ice velocity, siu [m/s]"),
+                                        (m.obs_vas, m.obs_siv, "northward wind, vas [m/s]", "northward ice velocity, siv [m/s]"),
+                                        (speed_wind, speed_ice, "wind speed [m/s]", "ice speed [m/s]")]):
+        ax.scatter(x, y, s=3, alpha=0.3, color="#f5a742", lw=0)
+        p = np.polyfit(x, y, 1); xx = np.array([float(x.min()), float(x.max())])
+        ax.plot(xx, np.polyval(p, xx), color="#5b4b8a", lw=2, label=f"slope {p[0]:.3f}   r = {np.corrcoef(x, y)[0, 1]:.2f}")
+        ax.set_xlabel(xl); ax.set_ylabel(yl); ax.legend(frameon=False)
+        for sp in ("top", "right"): ax.spines[sp].set_visible(False)
+    fig.suptitle(f"synthetic observations, member {member}")
+
+
+def input_maps(t=0, member_label="r1i1p1f1", arrows=True):
+    """The full-Arctic fields for one day: the target (ice velocity), the physical inputs (wind, concentration),
+    and where the ITPs sampled. Speeds as colour, direction as arrows."""
     m = D.maps
-    fig, axs = plt.subplots(2, 3, figsize=(15, 9), subplot_kw={"projection": PROJ}, layout="constrained")
-    fields = [("siu — eastward ice velocity [m/s]", m.siu[:, :, t], cmocean.cm.balance, dict(vmin=-0.3, vmax=0.3)),
-              ("siv — northward ice velocity [m/s]", m.siv[:, :, t], cmocean.cm.balance, dict(vmin=-0.3, vmax=0.3)),
-              ("sic — ice concentration [%]", m.sic[:, :, t], cmocean.cm.ice, dict(vmin=0, vmax=100)),
-              ("uas — eastward wind [m/s]", m.uas[:, :, t], cmocean.cm.balance, dict(vmin=-12, vmax=12)),
-              ("vas — northward wind [m/s]", m.vas[:, :, t], cmocean.cm.balance, dict(vmin=-12, vmax=12)),
-              ("where the ITPs sampled (2004-2014)", None, None, {})]
-    for ax, (title, f, cmap, kw) in zip(axs.flat, fields):
-        if f is None:
-            polar_axes(ax, title)
-            ax.scatter(D.lon_obs, D.lat_obs, s=1, c="k", transform=PC)
-        else:
-            map_field(ax, f, title, cmap=cmap, **kw)
+    fig, axs = plt.subplots(2, 2, figsize=(11, 10.5), subplot_kw={"projection": PROJ}, layout="constrained")
+    map_field(axs[0, 0], np.hypot(m.siu[:, :, t], m.siv[:, :, t]), "ice velocity (siu, siv) — the target [m/s]", CMAP["ice_speed"], ice_only=True, vmin=0, vmax=0.3)
+    map_field(axs[0, 1], np.hypot(m.uas[:, :, t], m.vas[:, :, t]), "wind (uas, vas) [m/s]", CMAP["wind"], vmin=0, vmax=12)
+    map_field(axs[1, 0], m.sic[:, :, t], "ice concentration (sic) [%]", CMAP["sic"], vmin=0, vmax=100)
+    if arrows:
+        quiver(axs[0, 0], m.siu[:, :, t], m.siv[:, :, t], ice_only=True, scale=3.5)
+        quiver(axs[0, 1], m.uas[:, :, t], m.vas[:, :, t], scale=150)
+    polar_axes(axs[1, 1], "where the ITPs sampled (2004-2014)")
+    axs[1, 1].scatter(D.lon_obs, D.lat_obs, s=1, c="k", transform=PC)
     fig.suptitle(f"IPSL-CM6A-LR {member_label}, {D.day_label(t)}")
+
+
+def quiver(ax, u, v, every=5, ice_only=False, scale=None, **kw):
+    """Direction arrows for an (east, north) vector field on the model grid, thinned by `every`."""
+    lat, lon = D.maps.lat[::every, ::every], D.maps.lon[::every, ::every]
+    u, v = u[::every, ::every], v[::every, ::every]
+    if ice_only:
+        keep = D.maps.ice_mask[::every, ::every]; u, v = np.where(keep, u, np.nan), np.where(keep, v, np.nan)
+    # rotate east/north components into the map projection
+    xyz = ax.projection.transform_points(PC, lon, lat)
+    east = ax.projection.transform_points(PC, lon + 0.01, lat) - xyz
+    north = ax.projection.transform_points(PC, lon, lat + 0.01) - xyz
+    e = east[..., :2] / np.linalg.norm(east[..., :2], axis=-1, keepdims=True)
+    n = north[..., :2] / np.linalg.norm(north[..., :2], axis=-1, keepdims=True)
+    px, py = u * e[..., 0] + v * n[..., 0], u * e[..., 1] + v * n[..., 1]
+    return ax.quiver(xyz[..., 0], xyz[..., 1], px, py, color="k", width=0.004, scale_units="width", scale=scale, zorder=4, **kw)
 
 
 # --- training and evaluation ----------------------------------------------------------------------------
@@ -153,7 +187,7 @@ def prediction_scatter(Y_true, Y_pred, title="", n_members=None):
     err = np.hypot(*(Y_pred - Y_true).reshape(n_members, -1, 2)[0].T)
     axs[2].remove(); ax = fig.add_subplot(1, 3, 3, projection=PROJ)
     polar_axes(ax, "|predicted - true| [m/s], one member")
-    sc = ax.scatter(D.lon_obs, D.lat_obs, c=err, s=4, cmap=cmocean.cm.amp, vmin=0, vmax=0.1, transform=PC)
+    sc = ax.scatter(D.lon_obs, D.lat_obs, c=err, s=4, cmap=CMAP["diff_pos"], vmin=0, vmax=0.1, transform=PC)
     plt.colorbar(sc, ax=ax, shrink=0.7)
     fig.suptitle(f"{title}  skill {s:.2f}, r = {c:.2f}")
 
@@ -165,17 +199,17 @@ def reconstruction_day(Y_rec, t=0, vmax=0.3):
     speed_true, speed_rec = np.hypot(Yt[:, :, t, 0], Yt[:, :, t, 1]), np.hypot(Y_rec[:, :, t, 0], Y_rec[:, :, t, 1])
     err = np.hypot(*(Y_rec[:, :, t] - Yt[:, :, t]).transpose(2, 0, 1))
     fig, axs = _grid(3, size=5)
-    map_field(axs[0], speed_true, "true ice speed [m/s]", cmocean.cm.speed, ice_only=True, vmin=0, vmax=vmax)
-    map_field(axs[1], speed_rec, "reconstructed ice speed [m/s]", cmocean.cm.speed, ice_only=True, vmin=0, vmax=vmax)
-    map_field(axs[2], err, "|reconstruction - truth| [m/s]", cmocean.cm.amp, ice_only=True, vmin=0, vmax=vmax / 2)
+    map_field(axs[0], speed_true, "true ice speed [m/s]", CMAP["ice_speed"], ice_only=True, vmin=0, vmax=vmax)
+    map_field(axs[1], speed_rec, "reconstructed ice speed [m/s]", CMAP["ice_speed"], ice_only=True, vmin=0, vmax=vmax)
+    map_field(axs[2], err, "|reconstruction - truth| [m/s]", CMAP["diff_pos"], ice_only=True, vmin=0, vmax=vmax / 2)
     fig.suptitle(D.day_label(t))
 
 
 def cell_scores(s, c, title=""):
     """Maps of per-cell skill and correlation."""
     fig, axs = _grid(2, size=5)
-    map_field(axs[0], s, "skill", vmin=-1, vmax=1)
-    map_field(axs[1], c, "correlation", vmin=-1, vmax=1)
+    map_field(axs[0], s, "skill", CMAP["skill"], vmin=-1, vmax=1)
+    map_field(axs[1], c, "correlation", CMAP["corr"], vmin=0, vmax=1)
     fig.suptitle(title)
 
 
@@ -211,7 +245,7 @@ def skill_difference(results, reference="all", vmax=0.5):
     others = [r for r in results.values() if r["name"] != reference]
     fig, axs = _grid(len(others), size=4.4, height=5)
     for ax, r in zip(axs, others):
-        map_field(ax, base - r["skill_map"], f"{reference} - {r['name']}", vmin=-vmax, vmax=vmax)
+        map_field(ax, base - r["skill_map"], f"{reference} - {r['name']}", CMAP["diff"], vmin=-vmax, vmax=vmax)
     fig.suptitle("skill of the reference minus skill of the scenario: red = the missing observations were helping there", fontsize=12)
 
 

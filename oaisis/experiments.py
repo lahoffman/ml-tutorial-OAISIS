@@ -21,7 +21,7 @@ _cache = {}
 def train_on(sel, name, seeds=SEEDS, hp=HP_OSD):
     """Retrain on a selection of ITP samples (once per seed); pooled skills and the seed-mean skill map.
     Results are cached, so re-running the same selection with the same settings returns instantly."""
-    key = (sel.tobytes(), tuple(seeds), hp["epochs"], hp["n_units"], hp["n_layers"], hp["lr"])
+    key = (sel.tobytes(), tuple(seeds), tuple(D.FEATURES), tuple(sorted((k, str(v)) for k, v in hp.items())))
     if key in _cache:
         res = dict(_cache[key], name=name)
         print(f"{name:14s} {describe(sel)}   skill {res['skills'].mean():.3f}  (cached)")
@@ -31,8 +31,9 @@ def train_on(sel, name, seeds=SEEDS, hp=HP_OSD):
     skills, maps = [], []
     for seed in seeds:
         mdl, _ = train_model(p.x_tr, p.y_tr, p.x_va, p.y_va, hp=hp, seed=seed)
-        pred = np.full((D.maps.X.shape[0], 2), np.nan, dtype="float32")
-        pred[D.maps.ok] = p.scaler.y_inv(mdl.predict(p.scaler.x(D.maps.X[D.maps.ok]), verbose=0))
+        X = D.maps_X(p.features)
+        pred = np.full((X.shape[0], 2), np.nan, dtype="float32")
+        pred[D.maps.ok] = p.scaler.y_inv(mdl.predict(p.scaler.x(X[D.maps.ok]), verbose=0))
         Y_rec = pred.reshape(D.maps.ny, D.maps.nx, D.maps.nt, 2)
         skills.append(skill(D.maps.Y_true[D.maps.ice_mask].reshape(-1, 2), Y_rec[D.maps.ice_mask].reshape(-1, 2)))
         maps.append(cell_scores(Y_rec)[0])
@@ -43,14 +44,16 @@ def train_on(sel, name, seeds=SEEDS, hp=HP_OSD):
     return res
 
 
-def _settings(quick):
-    return ((0,), dict(HP_OSD, epochs=10)) if quick else (SEEDS, HP_OSD)
+def _settings(quick, hp):
+    """Seeds and hyperparameters for a run: the notebook's HP (or ml.HP) with 15 epochs; quick = one seed, 10 epochs."""
+    base = dict(HP if hp is None else hp)
+    return ((0,), dict(base, epochs=10)) if quick else (SEEDS, dict(base, epochs=min(15, base["epochs"])))
 
 
-def run_experiment(name, scenarios, quick=False, maps=True):
+def run_experiment(name, scenarios, quick=False, maps=True, hp=None):
     """Train and score every observing system in `scenarios` (plus the `all` reference);
-    draw the sampling maps, the skill bars and the skill-difference maps."""
-    seeds, hp = _settings(quick)
+    draw the sampling maps, the skill bars and the skill-difference maps. `hp`: the hyperparameters to use (default ml.HP)."""
+    seeds, hp = _settings(quick, hp)
     scenarios = {**scenarios, "all": everything()}
     print(f"{name}: {len(scenarios)} observing systems x {len(seeds)} seed(s)\n")
     results = {k: train_on(v, k, seeds, hp) for k, v in scenarios.items()}
@@ -61,9 +64,9 @@ def run_experiment(name, scenarios, quick=False, maps=True):
     return results
 
 
-def run_sequence(name, sequence, quick=False, labels=None, map_steps=None):
+def run_sequence(name, sequence, quick=False, labels=None, map_steps=None, hp=None):
     """Observing systems that grow one ITP at a time: skill curve against the `all` reference, plus maps at `map_steps`."""
-    seeds, hp = _settings(quick)
+    seeds, hp = _settings(quick, hp)
     print(f"{name}: {len(sequence)} steps x {len(seeds)} seed(s); order of addition {list(sequence)}\n")
     steps = [train_on(tracks(*sequence[:k]), f"{k} ITP{'s' if k > 1 else ''}", seeds, hp) for k in range(1, len(sequence) + 1)]
     ref = train_on(everything(), "all", seeds, hp)

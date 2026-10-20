@@ -51,13 +51,30 @@ track_ids, track_len = np.unique(track_obs, return_counts=True)
 n_samples = lat_obs.size
 
 # --- the machine-learning table -------------------------------------------------------------------
-FEATURES = ["uas", "vas", "sic", "doy", "lat", "cos_lon", "sin_lon"]
+ALL_FEATURES = ["uas", "vas", "sic", "doy", "lat", "cos_lon", "sin_lon", "wind_speed"]   # everything the table can offer
+FEATURES = ["uas", "vas", "sic", "doy", "lat", "cos_lon", "sin_lon"]                      # what the network gets (see use_features)
 TARGETS = ["siu", "siv"]
 
 
-def make_table(uas, vas, sic, doy, lat, lon, siu=None, siv=None):
-    """Stack broadcastable arrays into X (n, 7) and Y (n, 2). Y is None if the targets are missing."""
-    arrs = np.broadcast_arrays(uas, vas, sic, doy, lat, np.cos(np.radians(lon)), np.sin(np.radians(lon)))
+def use_features(names):
+    """Choose the network's inputs from ALL_FEATURES, e.g. use_features(["uas", "vas", "sic"]). Takes effect in the next
+    `prepared()` / `obs_table()` / `maps_X()` call."""
+    bad = [n for n in names if n not in ALL_FEATURES]
+    if bad:
+        raise ValueError(f"unknown feature(s) {bad}; choose from {ALL_FEATURES}")
+    FEATURES[:] = list(names)                     # in place, so every module sees the change
+    return FEATURES
+
+
+def _columns(uas, vas, sic, doy, lat, lon):
+    cos_lon, sin_lon = np.cos(np.radians(lon)), np.sin(np.radians(lon))
+    return dict(uas=uas, vas=vas, sic=sic, doy=doy, lat=lat, cos_lon=cos_lon, sin_lon=sin_lon, wind_speed=np.hypot(uas, vas))
+
+
+def make_table(uas, vas, sic, doy, lat, lon, siu=None, siv=None, features=None):
+    """Stack broadcastable arrays into X (n, n_features) and Y (n, 2). Y is None if the targets are missing."""
+    cols = _columns(uas, vas, sic, doy, lat, lon)
+    arrs = np.broadcast_arrays(*[cols[f] for f in (features or FEATURES)])
     X = np.stack([a.ravel() for a in arrs], axis=1).astype("float32")
     Y = None
     if siu is not None:
@@ -82,11 +99,12 @@ class Scaler:
     fixed = {"sic": 100.0, "doy": 365.0, "lat": 90.0, "cos_lon": 1.0, "sin_lon": 1.0}
 
     def fit(self, X, Y):
+        self.features = list(FEATURES)
         self.x_mean, self.x_std = X.mean(0), X.std(0)
         self.y_mean, self.y_std = Y.mean(0), Y.std(0)
-        for name, s in self.fixed.items():          # geometric inputs: divide by a constant
-            i = FEATURES.index(name)
-            self.x_mean[i], self.x_std[i] = 0.0, s
+        for i, name in enumerate(self.features):   # geometric inputs: divide by a constant
+            if name in self.fixed:
+                self.x_mean[i], self.x_std[i] = 0.0, self.fixed[name]
         return self
 
     def x(self, X):  return (X - self.x_mean) / self.x_std
@@ -102,10 +120,22 @@ def prepared(sample_mask=None):
         X, Y = obs_table(mem, sample_mask)
         setattr(p, "X_" + split[:2], X); setattr(p, "Y_" + split[:2], Y)
     p.scaler = Scaler().fit(p.X_tr, p.Y_tr)
+    p.features = list(FEATURES)
     for split in ("tr", "va", "te"):
         setattr(p, "x_" + split, p.scaler.x(getattr(p, "X_" + split)))
         setattr(p, "y_" + split, p.scaler.y(getattr(p, "Y_" + split)))
     return p
+
+
+def summary(p):
+    """Print the split sizes and the scaled range of every input (training set)."""
+    print(f"inputs ({len(p.features)}): {p.features}   targets: {TARGETS}")
+    for split, mem in SPLIT.items():
+        X = getattr(p, "X_" + split[:2])
+        print(f"  {split:5s}: {len(mem):2d} members ({mem[0]} ... {mem[-1]})  ->  {X.shape[0]:7d} samples")
+    print("scaled input ranges (train):")
+    for i, f in enumerate(p.features):
+        print(f"  {f:10s} [{p.x_tr[:, i].min():6.2f}, {p.x_tr[:, i].max():6.2f}]")
 
 
 # --- the maps ---------------------------------------------------------------------------------------
@@ -121,9 +151,16 @@ with np.errstate(all="ignore"):
         warnings.simplefilter("ignore", RuntimeWarning)
         maps.ice_mask = np.isfinite(maps.siu).all(axis=2) & (np.nanmean(maps.sic, axis=2) > 15)   # where a reconstruction is meaningful
         maps.land = ~np.isfinite(maps.sic).any(axis=2) & (maps.lat > 55)                           # the model's land mask
-maps.X, maps.Y = make_table(maps.uas, maps.vas, maps.sic, maps.doy[None, None, :], maps.lat[:, :, None], maps.lon[:, :, None], maps.siu, maps.siv)
-maps.ok = np.isfinite(maps.X).all(axis=1)                                 # land cells have NaN inputs
+maps.X_all, maps.Y = make_table(maps.uas, maps.vas, maps.sic, maps.doy[None, None, :], maps.lat[:, :, None], maps.lon[:, :, None],
+                                maps.siu, maps.siv, features=ALL_FEATURES)
+maps.ok = np.isfinite(maps.X_all).all(axis=1)                             # land cells have NaN inputs
 maps.Y_true = maps.Y.reshape(maps.ny, maps.nx, maps.nt, 2)
+
+
+def maps_X(features=None):
+    """The full-grid input table (cells x days, n_features) for the current (or given) features."""
+    idx = [ALL_FEATURES.index(f) for f in (features or FEATURES)]
+    return maps.X_all[:, idx]
 
 
 def day_label(t):

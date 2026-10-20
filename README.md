@@ -24,13 +24,13 @@ and take 10–15 minutes (set `SEEDS = (0,)` or pass `quick=True` for a faster l
 ## What's here
 
 ```
-reconstruction.ipynb     the tutorial as one self-contained notebook: every line of code in one place
-book/                    the same tutorial as a Jupyter Book (the website): one page per concept, barebones code
-oaisis/                  the helper package the book pages import (data, plots, ml, metrics, selectors, experiments, teaching);
-                         `pip install -e .` -- Binder does this automatically
+reconstruction.ipynb     the tutorial notebook (used in live sessions): short cells calling the oaisis package; two CHANGE ME cells
+book/                    the same tutorial as a Jupyter Book (the website): one page per concept
+oaisis/                  the package the notebook and the book import (data, plots, ml, metrics, selectors, experiments, teaching);
+                         `pip install -e .` -- Binder and the Colab setup cell do this automatically
 data/                    the dataset and its description
 preprocessing/           how the dataset was made: download -> ITP positions -> co-location -> maps -> dataset
-figures/                 the three schematics and the script that draws them (it trains the small networks they show)
+figures/                 the four schematics and the script that draws them (it trains the small networks they show)
 requirements.txt         python packages (also used by Binder)
 .github/workflows/       builds the book and publishes it to GitHub Pages on every push to main
 ```

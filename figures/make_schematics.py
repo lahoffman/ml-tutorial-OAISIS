@@ -7,6 +7,7 @@ figures/training.png        inputs at ITP locations -> neural network -> outputs
 figures/reconstruction.png  full-Arctic inputs -> NN 1 / NN 2 -> predicted maps, scored against the truth,
                             and the skill of the two compared
 figures/sparse_to_global.png one network trained on all ITP samples, then applied to the full grid (no comparison yet)
+figures/problem.png         the problem: wind known everywhere, ice velocity known only at the instruments -> learn a -> b
 """
 import os
 from pathlib import Path
@@ -114,14 +115,14 @@ def points(ax, sel, c, cmap=None, vmin=None, vmax=None, **kw):
     return ax.scatter(lon[sel], lat[sel], c=c, s=9, cmap=cmap, vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree(), linewidths=0, zorder=3, **kw)
 
 
-def frame(fig, ax, title):
+def frame(fig, ax, title, fontsize=12):
     """Slide-9 style panel: black header with the title, thin frame around the axes."""
     b = ax.get_position()
     pad, head = 0.012, 0.055
     fig.add_artist(Rectangle((b.x0 - pad, b.y0 - pad), b.width + 2 * pad, b.height + 2 * pad + head, transform=fig.transFigure,
                              fc="white", ec=INK, lw=1.2, zorder=0))
     fig.add_artist(Rectangle((b.x0 - pad, b.y1 + pad), b.width + 2 * pad, head, transform=fig.transFigure, fc=INK, ec=INK, zorder=1))
-    fig.text(b.x0 + b.width / 2, b.y1 + pad + head / 2, title, ha="center", va="center", color="white", fontsize=12, fontweight="bold")
+    fig.text(b.x0 + b.width / 2, b.y1 + pad + head / 2, title, ha="center", va="center", color="white", fontsize=fontsize, fontweight="bold")
 
 
 def network(fig, ax, label):
@@ -164,7 +165,7 @@ for row, (name, sel) in enumerate(list(obs_sets.items())[:2]):
     ax_in = fig.add_subplot(gs[row, 0], projection=PROJ); polar(ax_in)
     ax_nn = fig.add_subplot(gs[row, 1])
     ax_out = fig.add_subplot(gs[row, 2], projection=PROJ); polar(ax_out)
-    points(ax_in, sel, wind_speed[sel], cmocean.cm.speed, 0, 12)
+    points(ax_in, sel, wind_speed[sel], cmocean.cm.tempo, 0, 12)
     points(ax_out, sel, ice_speed[sel], cmocean.cm.speed, 0, 0.3)
     if row == 1:                                                           # halo under what is new relative to NN 1
         new = sel & ~obs_sets["NN 1"]
@@ -233,7 +234,7 @@ sel = obs_sets["NN"]
 ax_in = fig.add_subplot(gs[0, 0], projection=PROJ); polar(ax_in, 66)
 ax_nn0 = fig.add_subplot(gs[0, 1])
 ax_out = fig.add_subplot(gs[0, 2], projection=PROJ); polar(ax_out, 66)
-points(ax_in, sel, wind_speed[sel], cmocean.cm.speed, 0, 12)
+points(ax_in, sel, wind_speed[sel], cmocean.cm.tempo, 0, 12)
 points(ax_out, sel, ice_speed[sel], cmocean.cm.speed, 0, 0.3)
 frame(fig, ax_in, "inputs at the ITP locations"); frame(fig, ax_out, "outputs at the ITP locations")
 network(fig, ax_nn0, "NN"); arrow(fig, ax_in, ax_nn0); arrow(fig, ax_nn0, ax_out)
@@ -268,3 +269,39 @@ fig.add_artist(FancyArrowPatch((xm, n0.y0 - 0.015), (xm, n1.y1 + 0.015), transfo
 fig.text(xm + 0.012, (n0.y0 + n1.y1) / 2, "trained\nweights", color="#5b4b8a", fontsize=10, va="center", ha="left")
 fig.savefig(ROOT / "figures" / "sparse_to_global.png", dpi=160, facecolor="white")
 print("written figures/sparse_to_global.png")
+
+# ---------------------------------------------------------------- figure 4: the problem
+fig = plt.figure(figsize=(15, 8.4))
+gs = fig.add_gridspec(2, 3, width_ratios=[4, 2.2, 4], wspace=0.55, hspace=0.6, left=0.06, right=0.96, top=0.90, bottom=0.08)
+ax_a = fig.add_subplot(gs[0, 0], projection=PROJ); polar(ax_a, 66)
+ax_b = fig.add_subplot(gs[1, 0], projection=PROJ); polar(ax_b, 66)
+ax_q = fig.add_subplot(gs[:, 1])
+_tmp = fig.add_subplot(gs[:, 2]); _b = _tmp.get_position(); _tmp.remove()
+_a = ax_a.get_position()
+ax_r = fig.add_axes([_b.x0, (_b.y0 + _b.y1) / 2 - _a.height / 2, _a.width, _a.height], projection=PROJ); polar(ax_r, 66)
+mesh(ax_a, wind_map, cmocean.cm.tempo, 0, 12)
+points(ax_b, obs_sets["NN"], ice_speed[obs_sets["NN"]], cmocean.cm.speed, 0, 0.3)
+mesh(ax_r, np.where(ice, truth_speed, np.nan), cmocean.cm.speed, 0, 0.3)
+ax_r.add_patch(Circle((0.5, 0.5), 0.5, transform=ax_r.transAxes, fc="white", ec="none", alpha=0.72, zorder=5))
+ax_r.text(0.5, 0.5, "?", transform=ax_r.transAxes, ha="center", va="center", fontsize=110, fontweight="bold", color=INK, zorder=6)
+frame(fig, ax_a, "wind — known everywhere"); frame(fig, ax_b, "ice velocity — at instruments only", fontsize=10.5)
+frame(fig, ax_r, "ice velocity — everywhere?")
+# the relation to learn: a dashed box with a -> b
+ax_q.axis("off"); ax_q.set_xlim(0, 1); ax_q.set_ylim(0, 1)
+bq = ax_q.get_position()
+fig.add_artist(FancyBboxPatch((bq.x0, bq.y0 + 0.3), bq.width, bq.height - 0.6, boxstyle="round,pad=0.01,rounding_size=0.02",
+                              transform=fig.transFigure, fc="white", ec=INK, lw=1.6, ls=(0, (6, 4)), zorder=0))
+fig.text(bq.x0 + bq.width / 2, bq.y0 + bq.height / 2 + 0.02, "a  →  b", ha="center", va="center", fontsize=22, fontweight="bold")
+fig.text(bq.x0 + bq.width / 2, bq.y0 + bq.height / 2 - 0.045, "learn the relation", ha="center", va="center", fontsize=11, style="italic")
+ba, bb, br = ax_a.get_position(), ax_b.get_position(), ax_r.get_position()
+ym = bq.y0 + bq.height / 2
+for b_ in (ba, bb):
+    y_ = (b_.y0 + b_.y1) / 2
+    fig.add_artist(FancyArrowPatch((b_.x1 + 0.016, y_), (bq.x0 - 0.008, ym + (0.04 if b_ is ba else -0.04)), transform=fig.transFigure,
+                                   arrowstyle="-|>", mutation_scale=20, color=INK, lw=2, connectionstyle="arc3,rad=" + ("-0.25" if b_ is ba else "0.25")))
+fig.add_artist(FancyArrowPatch((bq.x1 + 0.012, ym), (br.x0 - 0.008, ym), transform=fig.transFigure, arrowstyle="-|>", mutation_scale=20, color=INK, lw=2))
+fig.text(ba.x0 - 0.03, (ba.y0 + ba.y1) / 2, "a", fontsize=20, fontweight="bold", ha="center", va="center")
+fig.text(bb.x0 - 0.03, (bb.y0 + bb.y1) / 2, "b", fontsize=20, fontweight="bold", ha="center", va="center")
+fig.text((bq.x1 + br.x0) / 2, ym + 0.025, "apply it wherever\na is known", ha="center", va="bottom", fontsize=11, style="italic")
+fig.savefig(ROOT / "figures" / "problem.png", dpi=160, facecolor="white")
+print("written figures/problem.png")
